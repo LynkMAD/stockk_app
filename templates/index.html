@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="vi" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <title>Dự Báo Cổ Phiếu</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body {
+      background-color: var(--bs-body-bg);
+      color: var(--bs-body-color);
+    }
+
+    .container {
+      margin-top: 40px;
+      max-width: 1000px;
+    }
+
+    .form-section {
+      background-color: var(--bs-secondary-bg);
+      padding: 24px;
+      border-radius: 12px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+      border: 1px solid var(--bs-border-color-translucent);
+    }
+
+    h2 {
+      font-weight: 700;
+    }
+
+    iframe {
+      width: 100%;
+      height: 600px;
+      border: none;
+      border-radius: 12px;
+      box-shadow: 0 4px 16px rgba(0, 0, 0, 0.5);
+      margin-top: 24px;
+    }
+
+    .table th, .table td {
+      vertical-align: middle;
+      font-size: 15px;
+    }
+
+    .btn-primary {
+      padding: 10px 20px;
+      font-weight: 600;
+    }
+
+    select, input {
+      font-size: 15px;
+    }
+  </style>
+</head>
+<body>
+<div class="container">
+  <h2 class="text-center text-info mb-4">📈 Dự Báo Giá Cổ Phiếu</h2>
+
+  <!-- Form -->
+  <div class="form-section">
+    <form method="POST" action="/">
+      <div class="row g-3">
+        <div class="col-md-3">
+          <label class="form-label">Mã cổ phiếu:</label>
+          <select name="stock" class="form-select" required>
+            <option value="">-- Chọn mã --</option>
+            {% for s in available_stocks %}
+              <option value="{{ s }}" {% if stock == s %}selected{% endif %}>{{ s }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-3">
+          <label class="form-label">Model:</label>
+          <select name="model" class="form-select" required>
+            <option value="LSTM" {% if model_type == 'LSTM' %}selected{% endif %}>LSTM</option>
+            <option value="Transformer" {% if model_type == 'Transformer' %}selected{% endif %}>Transformer</option>
+            <option value="Autoformer" {% if model_type == 'Autoformer' %}selected{% endif %}>Autoformer</option>
+          </select>
+        </div>
+        <div class="col-md-3">
+        <label class="form-label">Loại mô hình:</label>
+        <select name="train_type" class="form-select">
+          <option value="single" {% if train_type == 'single' %}selected{% endif %}>1 cổ phiếu</option>
+          <option value="multi" {% if train_type == 'multi' %}selected{% endif %}>Nhiều cổ phiếu</option>
+        </select>
+      </div>
+        <div class="col-md-3">
+          <label class="form-label">Số ngày dự báo:</label>
+          <input type="number" name="days" class="form-control" value="{{ days or 1 }}" min="1" required>
+        </div>
+        
+        <div class="col-md-3">
+          <label class="form-label">Hiển thị:</label>
+          <select name="range" class="form-select">
+            <option value="30" {% if selected_range == '30' %}selected{% endif %}>30 ngày</option>
+            <option value="90" {% if selected_range == '90' %}selected{% endif %}>3 tháng</option>
+            <option value="365" {% if selected_range == '365' %}selected{% endif %}>1 năm</option>
+            <option value="all" {% if selected_range == 'all' or not selected_range %}selected{% endif %}>Toàn bộ</option>
+          </select>
+        </div>
+      </div>
+      <div class="text-center mt-4">
+        <button class="btn btn-primary" type="submit">🚀 Dự báo</button>
+      </div>
+      
+    </form>
+  </div>
+
+  <!-- Forecast result -->
+  {% if forecast %}
+    <div class="text-center mb-4">
+      <h5 class="text-muted">📅 Dự báo {{ days }} ngày tiếp theo cho <strong>{{ stock }}</strong>:</h5>
+    </div>
+
+    <iframe src="{{ url_for('static', filename='plot.html') }}"></iframe>
+
+    <div class="table-responsive mt-4">
+      <table class="table table-dark table-bordered table-hover align-middle">
+        <thead class="table-light text-dark">
+          <tr>
+            <th>Ngày</th>
+            <th>Giá Dự Báo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for day, price in forecast %}
+            <tr>
+              <td>{{ day }}</td>
+              <td>{{ "%.2f"|format(price) }}</td>
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  {% endif %}
+</div>
+</body>
+</html>

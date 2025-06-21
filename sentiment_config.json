@@ -1,0 +1,42 @@
+{
+  "seq_len": 50,
+  "label_len": 25,
+  "pred_len": 3,
+
+  "enc_in": 3,
+  "dec_in": 3,
+  "c_out": 1,
+
+  "d_model": 64,
+  "embed": "fixed",
+  "freq": "h",
+  "dropout": 0.2,
+
+  "n_heads": 4,
+  "d_ff": 128,
+  "e_layers": 2,
+  "d_layers": 1,
+
+  "moving_avg": 25,
+  "factor": 3,
+  "activation": "gelu",
+  "output_attention": false,
+
+  "train_test_split": 0.85,
+  "columns": [
+    "Close",
+    "Volume",
+    "Scaled_sentiment"
+  ],
+  "columns_to_normalise": [
+    0, 1
+  ],
+  "normalise": true,
+  "optimizer": "adam",
+  "loss": "mse",
+  "epochs": 30,
+  "batch_size": 32,
+  "save_dir": "saved_models",
+  "val_ratio": 0.2,
+  "patience": 5
+}
