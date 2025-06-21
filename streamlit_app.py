@@ -18,8 +18,10 @@ DATA_DIR = "data"
 MODEL_DIR = "models"
 
 def get_available_stocks():
-    files = os.listdir(DATA_DIR)
-    return sorted([f.split(".")[0].upper() for f in files if f.endswith(".csv")])
+    files = [f for f in os.listdir(DATA_DIR) if f.endswith(".csv")]
+    # Trả về dict: {'AAPL': 'aapl', 'GOOG': 'goog', ...}
+    stocks = {f.split(".")[0].upper(): f.split(".")[0] for f in files}
+    return stocks
 
 def dict2namespace(d):
     for k, v in d.items():
@@ -72,30 +74,61 @@ def predict_lstm(df, model_path, predict_days):
 
 def predict_transformer_autoregressive(df, model_path, predict_days):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
     if 'Scaled_sentiment' in df.columns:
         data = df[['Volume', 'Open', 'Close', 'Scaled_sentiment']].values
         d_input = 4
+        mode = 'Sentiment'
     else:
         data = df[['Volume', 'Open', 'Close']].values
         d_input = 3
+        mode = 'Nonsentiment'
+
     scaler = MinMaxScaler()
     scaled_data = scaler.fit_transform(data)
-    sequence = scaled_data[-50:].copy()
-    model = Transformer(d_input, 32, 1, 8, 8, 8, 8, attention_size=512, dropout=0.1, pe='regular').to(device)
+
+    input_length = 50
+    sequence = scaled_data[-input_length:].copy()
+
+    d_output = 1
+    d_model = 32
+    q = 8
+    v = 8
+    h = 8
+    N = 8
+    attention_size = 512
+    dropout = 0.1
+    pe = 'regular'
+    chunk_mode = None
+
+    model = Transformer(d_input, d_model, d_output, q, v, h, N,
+                        attention_size=attention_size, dropout=dropout,
+                        chunk_mode=chunk_mode, pe=pe).to(device)
+
     model.load_state_dict(torch.load(model_path, map_location=device))
     model.eval()
+
     predicted_scaled_list = []
+
     for _ in range(predict_days):
-        input_seq = torch.tensor(sequence[-50:], dtype=torch.float32).unsqueeze(0).to(device)
+        input_seq = torch.tensor(sequence[-input_length:], dtype=torch.float32).unsqueeze(0).to(device)
         with torch.no_grad():
-            next_step = model(input_seq).cpu().numpy().flatten()[0]
+            output = model(input_seq)
+            next_step = output.cpu().numpy().flatten()[0]
             predicted_scaled_list.append(next_step)
+
         next_row = sequence[-1].copy()
         next_row[2] = next_step
         sequence = np.vstack([sequence, next_row])
-    expanded = np.zeros((predict_days, d_input))
+
+    if mode == 'Sentiment':
+        expanded = np.zeros((predict_days, 4))
+    else:
+        expanded = np.zeros((predict_days, 3))
+
     expanded[:, 2] = predicted_scaled_list
     predicted = scaler.inverse_transform(expanded)[:, 2]
+
     return predicted.tolist(), df
 
 def predict_autoformer(df, model_path, config_path, predict_days):
@@ -129,12 +162,13 @@ def predict_autoformer(df, model_path, config_path, predict_days):
 st.set_page_config(layout="wide")
 st.title("📈 Dự Báo Giá Cổ Phiếu")
 
-stocks = get_available_stocks()
-stock = st.selectbox("Chọn mã cổ phiếu:", stocks)
+stocks_dict = get_available_stocks()
+selected_display = st.selectbox("Chọn mã cổ phiếu:", list(stocks_dict.keys()))
+stock = stocks_dict[selected_display]  # Tên đúng (không viết hoa) để đọc file
 model_type = st.selectbox("Chọn mô hình:", ["LSTM", "Transformer", "Autoformer"])
 train_type = st.radio("Loại mô hình:", ["single", "multi"])
 days = st.number_input("Số ngày dự báo:", value=3, min_value=1, step=1)
-display_range = st.selectbox("Khoảng thời gian hiển thị:", ["30", "90", "365", "all"])
+display_range = st.selectbox("Khoảng thời gian hiển thị:", ["all", "365", "90", "30"])
 
 if st.button("🚀 Dự báo"):
     df = load_stock_data(stock)

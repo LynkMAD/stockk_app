@@ -200,7 +200,7 @@ class MultiHeadAttentionChunk(MultiHeadAttention):
             Self attention tensor with shape (batch_size, K, d_model).
         """
         K = query.shape[1]
-        n_chunk = K // self._chunk_size
+        n_chunk = max(1, K // self._chunk_size)
 
         # Compute Q, K and V, concatenate heads on batch dimension
         queries = torch.cat(torch.cat(self._W_q(query).chunk(self._h, dim=-1), dim=0).chunk(n_chunk, dim=1), dim=0)
